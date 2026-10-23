@@ -2,14 +2,22 @@ import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { User, Briefcase, RefreshCw, FileText, Sparkles, CloudUpload, Link, ExternalLink, Bot, TerminalSquare, CheckCircle2 } from 'lucide-react';
 
-// FIX 1: Added trailing slash to match FastAPI exactly
 const API_PROFILE = 'https://job-auto-assistant.onrender.com/api/profile/';
 const API_RESUME = 'https://job-auto-assistant.onrender.com/api/resume/generate';
 
 export default function App() {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState({ full_name: '', email: '', target_roles: '', github_username: '' });
+  
+  // FIX: Added phone and location to state
+  const [formData, setFormData] = useState({ 
+    full_name: '', 
+    email: '', 
+    phone: '', 
+    location: '', 
+    target_roles: '', 
+    github_username: '' 
+  });
   
   const [jobDescription, setJobDescription] = useState('');
   const [generatedResume, setGeneratedResume] = useState('');
@@ -30,6 +38,8 @@ export default function App() {
       setFormData({
         full_name: res.data.full_name || '',
         email: res.data.email || '',
+        phone: res.data.phone || '',
+        location: res.data.location || '',
         target_roles: res.data.target_roles ? res.data.target_roles.join(', ') : '',
         github_username: res.data.github_username || ''
       });
@@ -42,10 +52,12 @@ export default function App() {
     e.preventDefault();
     setLoading(true);
     
-    // FIX 2: Clean the payload so FastAPI doesn't reject empty strings
+    // FIX: Included phone and location in the payload to satisfy FastAPI
     const payload = { 
       full_name: formData.full_name,
       email: formData.email,
+      phone: formData.phone,
+      location: formData.location,
       target_roles: formData.target_roles ? formData.target_roles.split(',').map(s => s.trim()).filter(Boolean) : []
     };
     
@@ -59,7 +71,7 @@ export default function App() {
       alert("Profile Saved Successfully!");
     } catch (error) {
       console.error(error.response?.data);
-      alert("Error saving profile: Check terminal logs");
+      alert("Error saving profile. Please try again.");
     }
     setLoading(false);
   };
@@ -83,7 +95,6 @@ export default function App() {
     if (baseResumeFile) formDataToSend.append('base_resume', baseResumeFile);
 
     try {
-      // API_RESUME naturally handles the trailing slash on the backend side depending on route config
       const res = await axios.post(API_RESUME, formDataToSend, { headers: { 'Content-Type': 'multipart/form-data' } });
       setGeneratedResume(res.data.resume);
     } catch (error) {
@@ -102,7 +113,7 @@ export default function App() {
       { delay: 3000, msg: "[LINKEDIN] Navigating to matching Easy Apply jobs..." },
       { delay: 4500, msg: "[DOM] Found 14 potential matches for your profile." },
       { delay: 6000, msg: "[ENGINE] Injecting tailored resume into application forms..." },
-      { delay: 7500, msg: "[AI] Answering dynamic employer questions (React, FastAPI experience)..." },
+      { delay: 7500, msg: "[AI] Answering dynamic employer questions (Playwright, TS experience)..." },
       { delay: 9000, msg: "[SUCCESS] Application 1/14 submitted successfully." },
       { delay: 10500, msg: "[SUCCESS] Application 2/14 submitted successfully." },
       { delay: 12000, msg: "✅ Batch complete. (Backend deployment required for real submissions)" }
@@ -150,10 +161,19 @@ export default function App() {
                     <label className="block text-xs font-bold text-zinc-400 uppercase mb-1">Email</label>
                     <input type="email" className="w-full bg-zinc-900 border border-zinc-800 rounded-lg p-2 text-white focus:outline-none focus:border-red-500" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} required />
                   </div>
+                  {/* FIX: Added Phone and Location inputs */}
+                  <div>
+                    <label className="block text-xs font-bold text-zinc-400 uppercase mb-1">Phone</label>
+                    <input type="tel" className="w-full bg-zinc-900 border border-zinc-800 rounded-lg p-2 text-white focus:outline-none focus:border-red-500" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} placeholder="+91 XXXXX XXXXX" required />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-zinc-400 uppercase mb-1">Location</label>
+                    <input type="text" className="w-full bg-zinc-900 border border-zinc-800 rounded-lg p-2 text-white focus:outline-none focus:border-red-500" value={formData.location} onChange={e => setFormData({...formData, location: e.target.value})} placeholder="e.g. Bangalore, India" required />
+                  </div>
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-zinc-400 uppercase mb-1">Target Roles</label>
-                  <input type="text" className="w-full bg-zinc-900 border border-zinc-800 rounded-lg p-2 text-white focus:outline-none focus:border-red-500" value={formData.target_roles} onChange={e => setFormData({...formData, target_roles: e.target.value})} placeholder="e.g. QA Automation, SDET" />
+                  <input type="text" className="w-full bg-zinc-900 border border-zinc-800 rounded-lg p-2 text-white focus:outline-none focus:border-red-500" value={formData.target_roles} onChange={e => setFormData({...formData, target_roles: e.target.value})} placeholder="e.g. QA Automation, SDET" required />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-zinc-400 uppercase mb-1">Base Resume (PDF)</label>
