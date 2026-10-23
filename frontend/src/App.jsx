@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { User, Briefcase, RefreshCw, FileText, Sparkles, CloudUpload, Link, ExternalLink, Bot, TerminalSquare, CheckCircle2 } from 'lucide-react';
 
-const API_PROFILE = 'https://job-auto-assistant.onrender.com/api/profile';
+// FIX 1: Added trailing slash to match FastAPI exactly
+const API_PROFILE = 'https://job-auto-assistant.onrender.com/api/profile/';
 const API_RESUME = 'https://job-auto-assistant.onrender.com/api/resume/generate';
 
 export default function App() {
@@ -15,7 +16,6 @@ export default function App() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [baseResumeFile, setBaseResumeFile] = useState(null);
 
-  // Auto-Apply State
   const [isApplying, setIsApplying] = useState(false);
   const [logs, setLogs] = useState([]);
   const logsEndRef = useRef(null);
@@ -41,13 +41,25 @@ export default function App() {
   const handleSave = async (e) => {
     e.preventDefault();
     setLoading(true);
+    
+    // FIX 2: Clean the payload so FastAPI doesn't reject empty strings
+    const payload = { 
+      full_name: formData.full_name,
+      email: formData.email,
+      target_roles: formData.target_roles ? formData.target_roles.split(',').map(s => s.trim()).filter(Boolean) : []
+    };
+    
+    if (formData.github_username && formData.github_username.trim() !== "") {
+      payload.github_username = formData.github_username;
+    }
+
     try {
-      const payload = { ...formData, target_roles: formData.target_roles.split(',').map(s => s.trim()) };
       await axios.post(API_PROFILE, payload);
       await fetchProfile();
       alert("Profile Saved Successfully!");
     } catch (error) {
-      alert("Error saving profile");
+      console.error(error.response?.data);
+      alert("Error saving profile: Check terminal logs");
     }
     setLoading(false);
   };
@@ -71,6 +83,7 @@ export default function App() {
     if (baseResumeFile) formDataToSend.append('base_resume', baseResumeFile);
 
     try {
+      // API_RESUME naturally handles the trailing slash on the backend side depending on route config
       const res = await axios.post(API_RESUME, formDataToSend, { headers: { 'Content-Type': 'multipart/form-data' } });
       setGeneratedResume(res.data.resume);
     } catch (error) {
@@ -84,7 +97,6 @@ export default function App() {
     setIsApplying(true);
     setLogs(["[SYSTEM] Initializing Playwright Headless Engine..."]);
     
-    // Simulate backend automation sequence for the UI
     const sequence = [
       { delay: 1500, msg: "[NETWORK] Bypassing bot detection & injecting cookies..." },
       { delay: 3000, msg: "[LINKEDIN] Navigating to matching Easy Apply jobs..." },
@@ -122,7 +134,6 @@ export default function App() {
         </header>
         
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          {/* Left Column: Core Details */}
           <div className="lg:col-span-5 space-y-8">
             <div className="bg-zinc-950 p-6 rounded-2xl border border-zinc-800 shadow-2xl relative overflow-hidden">
               <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-600 to-red-900"></div>
@@ -152,12 +163,13 @@ export default function App() {
                     <span className="text-sm font-medium">{baseResumeFile ? baseResumeFile.name : "Click or drag to upload PDF"}</span>
                   </div>
                 </div>
-                <button type="submit" className="w-full bg-zinc-800 text-white p-2 rounded-lg font-bold hover:bg-zinc-700 transition-all">Save Config</button>
+                <button type="submit" className="w-full bg-zinc-800 text-white p-2 rounded-lg font-bold hover:bg-zinc-700 transition-all">
+                  {loading ? 'Saving...' : 'Save Config'}
+                </button>
               </form>
             </div>
           </div>
 
-          {/* Right Column: AI Tailoring & Auto-Apply */}
           <div className="lg:col-span-7 space-y-6">
             <div className="bg-zinc-950 p-6 md:p-8 rounded-2xl border border-zinc-800 shadow-2xl flex flex-col">
               <h2 className="text-xl font-semibold mb-6 flex items-center gap-2 text-white">
@@ -184,7 +196,6 @@ export default function App() {
                 </button>
               </div>
 
-              {/* Terminal View for Auto Apply */}
               {(logs.length > 0 || isApplying) && (
                 <div className="mt-6 bg-black border border-zinc-800 rounded-xl p-4 font-mono text-xs md:text-sm text-emerald-400 h-[150px] overflow-y-auto custom-scrollbar shadow-inner relative">
                   <div className="flex items-center gap-2 text-zinc-500 mb-2 sticky top-0 bg-black pb-2 border-b border-zinc-800">
@@ -205,7 +216,6 @@ export default function App() {
                 </div>
               )}
 
-              {/* Generated Resume Output */}
               {generatedResume && (
                 <div className="mt-8 pt-6 border-t border-zinc-800 animate-in fade-in duration-500">
                   <div className="flex justify-between items-center mb-4">
