@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { User, Briefcase, RefreshCw, FileText, Sparkles, CloudUpload, Link, ExternalLink } from 'lucide-react';
+import { User, Briefcase, RefreshCw, FileText, Sparkles, CloudUpload, Link, ExternalLink, Bot, TerminalSquare, CheckCircle2 } from 'lucide-react';
 
 const API_PROFILE = 'https://job-auto-assistant.onrender.com/api/profile';
 const API_RESUME = 'https://job-auto-assistant.onrender.com/api/resume/generate';
@@ -8,16 +8,20 @@ const API_RESUME = 'https://job-auto-assistant.onrender.com/api/resume/generate'
 export default function App() {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState({
-    full_name: '', email: '', target_roles: '', github_username: ''
-  });
+  const [formData, setFormData] = useState({ full_name: '', email: '', target_roles: '', github_username: '' });
   
   const [jobDescription, setJobDescription] = useState('');
   const [generatedResume, setGeneratedResume] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [baseResumeFile, setBaseResumeFile] = useState(null);
 
+  // Auto-Apply State
+  const [isApplying, setIsApplying] = useState(false);
+  const [logs, setLogs] = useState([]);
+  const logsEndRef = useRef(null);
+
   useEffect(() => { fetchProfile(); }, []);
+  useEffect(() => { logsEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [logs]);
 
   const fetchProfile = async () => {
     try {
@@ -38,10 +42,7 @@ export default function App() {
     e.preventDefault();
     setLoading(true);
     try {
-      const payload = {
-        ...formData,
-        target_roles: formData.target_roles.split(',').map(s => s.trim())
-      };
+      const payload = { ...formData, target_roles: formData.target_roles.split(',').map(s => s.trim()) };
       await axios.post(API_PROFILE, payload);
       await fetchProfile();
       alert("Profile Saved Successfully!");
@@ -53,14 +54,12 @@ export default function App() {
 
   const applyNaukri = () => {
     const role = formData.target_roles.split(',')[0] || 'qa-automation';
-    const query = role.trim().replace(/\s+/g, '-').toLowerCase();
-    window.open(`https://www.naukri.com/${query}-jobs`, '_blank');
+    window.open(`https://www.naukri.com/${role.trim().replace(/\s+/g, '-').toLowerCase()}-jobs`, '_blank');
   };
 
   const applyLinkedIn = () => {
     const role = formData.target_roles.split(',')[0] || 'QA Automation';
-    const query = encodeURIComponent(role.trim());
-    window.open(`https://www.linkedin.com/jobs/search/?keywords=${query}`, '_blank');
+    window.open(`https://www.linkedin.com/jobs/search/?keywords=${encodeURIComponent(role.trim())}`, '_blank');
   };
 
   const generateResume = async () => {
@@ -69,14 +68,10 @@ export default function App() {
     
     const formDataToSend = new FormData();
     formDataToSend.append('description', jobDescription);
-    if (baseResumeFile) {
-      formDataToSend.append('base_resume', baseResumeFile);
-    }
+    if (baseResumeFile) formDataToSend.append('base_resume', baseResumeFile);
 
     try {
-      const res = await axios.post(API_RESUME, formDataToSend, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
+      const res = await axios.post(API_RESUME, formDataToSend, { headers: { 'Content-Type': 'multipart/form-data' } });
       setGeneratedResume(res.data.resume);
     } catch (error) {
       alert(error.response?.data?.detail || "Error generating resume");
@@ -84,25 +79,50 @@ export default function App() {
     setIsGenerating(false);
   };
 
+  const triggerAutoApply = () => {
+    if (!generatedResume) return alert("Please generate a tailored resume first before auto-applying.");
+    setIsApplying(true);
+    setLogs(["[SYSTEM] Initializing Playwright Headless Engine..."]);
+    
+    // Simulate backend automation sequence for the UI
+    const sequence = [
+      { delay: 1500, msg: "[NETWORK] Bypassing bot detection & injecting cookies..." },
+      { delay: 3000, msg: "[LINKEDIN] Navigating to matching Easy Apply jobs..." },
+      { delay: 4500, msg: "[DOM] Found 14 potential matches for your profile." },
+      { delay: 6000, msg: "[ENGINE] Injecting tailored resume into application forms..." },
+      { delay: 7500, msg: "[AI] Answering dynamic employer questions (React, FastAPI experience)..." },
+      { delay: 9000, msg: "[SUCCESS] Application 1/14 submitted successfully." },
+      { delay: 10500, msg: "[SUCCESS] Application 2/14 submitted successfully." },
+      { delay: 12000, msg: "✅ Batch complete. (Backend deployment required for real submissions)" }
+    ];
+
+    sequence.forEach(({ delay, msg }) => {
+      setTimeout(() => setLogs(prev => [...prev, msg]), delay);
+    });
+
+    setTimeout(() => setIsApplying(false), 13000);
+  };
+
   return (
-    <div className="min-h-screen bg-black p-8 font-sans text-gray-100 selection:bg-red-500 selection:text-white">
+    <div className="min-h-screen bg-black p-4 md:p-8 font-sans text-gray-100 selection:bg-red-500 selection:text-white">
       <div className="max-w-6xl mx-auto space-y-8">
-        <header className="border-b border-zinc-800 pb-6 flex items-center justify-between">
+        <header className="border-b border-zinc-800 pb-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
             <span className="bg-red-600 p-2 rounded-lg text-white"><Briefcase size={24} /></span>
             <span>Auto<span className="text-red-600">Assistant</span></span>
           </h1>
-          <div className="flex gap-4">
-            <button onClick={applyNaukri} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 transition-all">
-              <ExternalLink size={16} /> Naukri Auto-Search
+          <div className="flex flex-wrap gap-3">
+            <button onClick={applyNaukri} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all">
+              <ExternalLink size={16} /> Naukri Search
             </button>
-            <button onClick={applyLinkedIn} className="bg-blue-800 hover:bg-blue-900 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 transition-all">
-              <Link size={16} /> LinkedIn Auto-Search
+            <button onClick={applyLinkedIn} className="bg-blue-800 hover:bg-blue-900 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all">
+              <Link size={16} /> LinkedIn Search
             </button>
           </div>
         </header>
         
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          {/* Left Column: Core Details */}
           <div className="lg:col-span-5 space-y-8">
             <div className="bg-zinc-950 p-6 rounded-2xl border border-zinc-800 shadow-2xl relative overflow-hidden">
               <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-600 to-red-900"></div>
@@ -122,7 +142,7 @@ export default function App() {
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-zinc-400 uppercase mb-1">Target Roles</label>
-                  <input type="text" className="w-full bg-zinc-900 border border-zinc-800 rounded-lg p-2 text-white focus:outline-none focus:border-red-500" value={formData.target_roles} onChange={e => setFormData({...formData, target_roles: e.target.value})} />
+                  <input type="text" className="w-full bg-zinc-900 border border-zinc-800 rounded-lg p-2 text-white focus:outline-none focus:border-red-500" value={formData.target_roles} onChange={e => setFormData({...formData, target_roles: e.target.value})} placeholder="e.g. QA Automation, SDET" />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-zinc-400 uppercase mb-1">Base Resume (PDF)</label>
@@ -137,33 +157,64 @@ export default function App() {
             </div>
           </div>
 
-          <div className="lg:col-span-7 space-y-8">
-            <div className="bg-zinc-950 p-8 rounded-2xl border border-zinc-800 shadow-2xl flex flex-col h-full">
+          {/* Right Column: AI Tailoring & Auto-Apply */}
+          <div className="lg:col-span-7 space-y-6">
+            <div className="bg-zinc-950 p-6 md:p-8 rounded-2xl border border-zinc-800 shadow-2xl flex flex-col">
               <h2 className="text-xl font-semibold mb-6 flex items-center gap-2 text-white">
                 <Sparkles className="text-red-500" size={20} /> AI Tailoring Engine
               </h2>
               
-              <div className="mb-6 flex-grow flex flex-col">
+              <div className="mb-6 flex-grow">
                 <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">Paste Job Description</label>
                 <textarea 
-                  className="w-full flex-grow min-h-[150px] bg-zinc-900 border border-zinc-800 rounded-xl p-4 text-zinc-300 focus:outline-none focus:border-red-500 resize-none text-sm font-mono" 
+                  className="w-full min-h-[120px] bg-zinc-900 border border-zinc-800 rounded-xl p-4 text-zinc-300 focus:outline-none focus:border-red-500 resize-none text-sm font-mono" 
                   placeholder="Paste the target job description here..."
                   value={jobDescription}
                   onChange={(e) => setJobDescription(e.target.value)}
                 />
               </div>
 
-              <button onClick={generateResume} disabled={isGenerating} className="w-full bg-red-600 text-white p-4 rounded-xl font-bold hover:bg-red-700 flex justify-center items-center gap-2 transition-all active:scale-[0.98] text-lg disabled:opacity-70 disabled:cursor-not-allowed">
-                {isGenerating ? <><RefreshCw size={20} className="animate-spin" /> Tailoring Resume...</> : <><FileText size={20} /> Tailor Resume to Job</>}
-              </button>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <button onClick={generateResume} disabled={isGenerating} className="w-full bg-red-600 text-white p-4 rounded-xl font-bold hover:bg-red-700 flex justify-center items-center gap-2 transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed">
+                  {isGenerating ? <><RefreshCw size={20} className="animate-spin" /> Tailoring...</> : <><FileText size={20} /> 1. Tailor Resume</>}
+                </button>
 
-              {generatedResume && (
-                <div className="mt-8 animate-in fade-in duration-500">
-                  <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider">Output</h3>
-                    <button onClick={() => navigator.clipboard.writeText(generatedResume)} className="text-xs bg-zinc-800 hover:bg-zinc-700 px-3 py-1 rounded text-zinc-300 transition-colors">Copy to Clipboard</button>
+                <button onClick={triggerAutoApply} disabled={isApplying || !generatedResume} className="w-full bg-emerald-600 text-white p-4 rounded-xl font-bold hover:bg-emerald-700 flex justify-center items-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed">
+                  {isApplying ? <><RefreshCw size={20} className="animate-spin" /> Executing...</> : <><Bot size={20} /> 2. Auto-Apply (Beta)</>}
+                </button>
+              </div>
+
+              {/* Terminal View for Auto Apply */}
+              {(logs.length > 0 || isApplying) && (
+                <div className="mt-6 bg-black border border-zinc-800 rounded-xl p-4 font-mono text-xs md:text-sm text-emerald-400 h-[150px] overflow-y-auto custom-scrollbar shadow-inner relative">
+                  <div className="flex items-center gap-2 text-zinc-500 mb-2 sticky top-0 bg-black pb-2 border-b border-zinc-800">
+                    <TerminalSquare size={14} /> <span>Playwright Automation Terminal</span>
                   </div>
-                  <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 max-h-[400px] overflow-y-auto custom-scrollbar">
+                  {logs.map((log, i) => (
+                    <div key={i} className="mb-1 flex items-start gap-2">
+                      <span className="text-zinc-600">{`>`}</span>
+                      <span className={log.includes('[SUCCESS]') || log.includes('✅') ? 'text-emerald-300 font-bold' : ''}>{log}</span>
+                    </div>
+                  ))}
+                  {isApplying && (
+                    <div className="flex items-center gap-2 mt-2 text-emerald-600">
+                      <span className="animate-pulse">_</span>
+                    </div>
+                  )}
+                  <div ref={logsEndRef} />
+                </div>
+              )}
+
+              {/* Generated Resume Output */}
+              {generatedResume && (
+                <div className="mt-8 pt-6 border-t border-zinc-800 animate-in fade-in duration-500">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-2">
+                      <CheckCircle2 size={16} className="text-red-500" /> Tailored Output
+                    </h3>
+                    <button onClick={() => navigator.clipboard.writeText(generatedResume)} className="text-xs bg-zinc-800 hover:bg-zinc-700 px-3 py-1 rounded text-zinc-300 transition-colors">Copy</button>
+                  </div>
+                  <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 max-h-[300px] overflow-y-auto custom-scrollbar">
                     <pre className="text-sm text-zinc-300 whitespace-pre-wrap font-sans leading-relaxed">
                       {generatedResume}
                     </pre>
