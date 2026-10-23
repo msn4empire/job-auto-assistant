@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { User, Briefcase, RefreshCw, FileText, Sparkles, CloudUpload, Link, ExternalLink } from 'lucide-react';
 
-const API_PROFILE = 'http://127.0.0.1:8000/api/profile';
-const API_RESUME = 'http://127.0.0.1:8000/api/resume/generate';
+const API_PROFILE = 'https://job-auto-assistant.onrender.com/api/profile';
+const API_RESUME = 'https://job-auto-assistant.onrender.com/api/resume/generate';
 
 export default function App() {
   const [profile, setProfile] = useState(null);
