@@ -5,3 +5,4 @@ pdfplumber
 google-genai
 python-multipart
 python-dotenv
+pydantic[email]
